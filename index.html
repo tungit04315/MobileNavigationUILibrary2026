@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Navigation UI Library 2026</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        theme: {
+                            blue: { primary: '#2563eb', active: '#dbeafe', darkBg: '#0f172a', darkCard: '#1e293b' },
+                            navy: { primary: '#1e3a8a', active: '#eff6ff', darkBg: '#090d16', darkCard: '#111827' },
+                            dark: { primary: '#3b82f6', active: '#1e293b', darkBg: '#151922', darkCard: '#1E2532' },
+                            minimal: { primary: '#18181b', active: '#f4f4f5', darkBg: '#09090b', darkCard: '#18181b' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Hide scrollbar for clean mobile frames */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Smooth transitions */
+        * { transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans antialiased selection:bg-blue-500 selection:text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- DỮ LIỆU MENU MẪU QUẢN LÝ DOANH NGHIỆP ---
+        const INITIAL_MENU_ITEMS = [
+            { id: 'home', label: 'Trang chủ', icon: 'home', group: 'Chính', badge: null },
+            { id: 'dashboard', label: 'Tổng quan', icon: 'layout-dashboard', group: 'Chính', badge: null },
+            { id: 'customers', label: 'Khách hàng', icon: 'users', group: 'Kinh doanh', badge: '12' },
+            { id: 'tasks', label: 'Công việc', icon: 'check-square', group: 'Vận hành', badge: '5' },
+            { id: 'hr', label: 'Nhân sự', icon: 'user-check', group: 'Vận hành', badge: null },
+            { id: 'finance', label: 'Tài chính', icon: 'wallet', group: 'Tài chính', badge: null },
+            { id: 'inventory', label: 'Quản lý kho', icon: 'box', group: 'Vận hành', badge: 'Cảnh báo' },
+            { id: 'reports', label: 'Báo cáo', icon: 'bar-chart-3', group: 'Báo cáo', badge: null },
+            { id: 'notifications', label: 'Thông báo', icon: 'bell', group: 'Hệ thống', badge: '9+' },
+            { id: 'profile', label: 'Cá nhân', icon: 'user', group: 'Hệ thống', badge: null },
+            { id: 'settings', label: 'Cấu hình', icon: 'settings', group: 'Hệ thống', badge: null }
+        ];
+
+        // --- METADATA CHO 8 MẪU MENU ---
+        const MENU_DESIGNS = [
+            {
+                id: 1,
+                name: "1. Bottom Navigation",
+                type: "bottom",
+                description: "Thanh menu cố định phía đáy màn hình, chứa 4-5 tab chức năng chính yếu nhất.",
+                pros: ["Cực kỳ dễ thao tác bằng ngón tay cái", "Luôn hiện diện giúp người dùng định vị", "Chuẩn UI/UX mobile phổ biến nhất"],
+                cons: ["Giới hạn tối đa 5 chức năng", "Chiếm một phần diện tích dọc màn hình"],
+                useCase: "Ứng dụng doanh nghiệp có 3-5 phân hệ trọng tâm truy cập liên tục (VD: Sale App, Task Manager)."
+            },
+            {
+                id: 2,
+                name: "2. Navigation Drawer",
+                type: "drawer",
+                description: "Menu dạng ngăn kéo trượt mượt mà từ cạnh trái ra, chứa toàn bộ danh mục phân hệ.",
+                pros: ["Chứa được số lượng menu không giới hạn", "Phân nhóm rõ ràng theo phòng ban", "Tiết kiệm diện tích màn hình chính"],
+                cons: ["Cần 2 thao tác để truy cập tính năng (Vuốt/Bấm mở)", "Người dùng dễ bỏ qua các menu ẩn bên trong"],
+                useCase: "Phần mềm ERP doanh nghiệp lớn với hàng chục phân hệ quản trị chi tiết."
+            },
+            {
+                id: 3,
+                name: "3. Hamburger Menu Overlay",
+                type: "hamburger",
+                description: "Menu dạng Modal full-screen hoặc Card mở ra khi nhấn biểu tượng 3 gạch top-bar.",
+                pros: ["Giao diện hiển thị thoáng đạt, hiện đại", "Tập trung tuyệt đối vào danh sách tính năng"],
+                cons: ["Tốn thao tác mở/đóng", "Ít phù hợp cho thao tác nhanh bằng 1 tay"],
+                useCase: "Ứng dụng doanh nghiệp phong cách tối giản, nhấn mạnh vào trải nghiệm đọc báo cáo & dashboard."
+            },
+            {
+                id: 4,
+                name: "4. Floating Bottom Navigation",
+                type: "floating",
+                description: "Thanh menu bồng bềnh tách rời viền dưới, bo góc tròn sang trọng kèm hiệu ứng đổ bóng glassmorphism.",
+                pros: ["Phong cách thiết kế UI 2026 hiện đại", "Không chạm dính viền safe-area điện thoại", "Tạo cảm giác nhẹ nhàng"],
+                cons: ["Che một phần nhỏ nội dung bên dưới nếu không xử lý padding chuẩn"],
+                useCase: "Ứng dụng SaaS doanh nghiệp trẻ, Startup công nghệ, CRM thế hệ mới."
+            },
+            {
+                id: 5,
+                name: "5. Bottom Navigation + FAB",
+                type: "fab",
+                description: "Kết hợp Bottom Nav với Nút Tạo Mới (Floating Action Button) nổi bật ngay chính giữa.",
+                pros: ["Kích thích hành động cốt lõi (Tạo đơn/Thêm task/Ghi thu chi)", "Trực quan và cực tiện lợi"],
+                cons: ["Nút FAB chiếm không gian chính giữa thanh điều hướng"],
+                useCase: "App quản lý công việc (Jira/Trello mobile), App kế toán bán hàng tại điểm."
+            },
+            {
+                id: 6,
+                name: "6. Icon Only Navigation",
+                type: "icon_only",
+                description: "Thanh menu tối giản loại bỏ nhãn chữ, chỉ giữ icon sắc nét kèm Badge và Tooltip khi chọn.",
+                pros: ["Tiết kiệm tối đa diện tích", "Tập trung thị giác vào icon", "Giao diện siêu sạch"],
+                cons: ["Yêu cầu Icon phải chuẩn hóa cực kỳ dễ hiểu", "Người dùng mới có thể hơi bỡ ngỡ"],
+                useCase: "Màn hình làm việc nâng cao (Power Users) hoặc các thiết bị smartphone màn hình nhỏ."
+            },
+            {
+                id: 7,
+                name: "7. Dashboard Grid Menu",
+                type: "grid",
+                description: "Menu điều hướng dạng lưới thẻ Icon lớn ngay tại trang chủ trung tâm.",
+                pros: ["Trực quan tuyệt đối", "Tốc độ nhận diện phân hệ cực nhanh", "Tích hợp số thống kê ngay trên card"],
+                cons: ["Không cố định khi chuyển sang trang con (cần nút Back)"],
+                useCase: "Trang chủ ứng dụng Quản trị nội bộ, Cổng thông tin nhân viên Super-App."
+            },
+            {
+                id: 8,
+                name: "8. Hybrid Navigation + Command Palette",
+                type: "hybrid",
+                description: "Sự kết hợp hoàn hảo giữa Bottom Nav (chức năng chính) + Drawer (chức năng phụ) + Thanh tìm kiếm nhanh Command Palette (Ctrl+K).",
+                pros: ["Đáp ứng 100% mọi quy mô tác vụ", "Tìm kiếm và kích hoạt menu bằng từ khóa siêu tốc"],
+                cons: ["Phức tạp hơn trong lập trình & thiết kế"],
+                useCase: "Phần mềm Quản trị Doanh nghiệp tổng thể (All-in-one Enterprise Hub)."
+            }
+        ];
+
+        // --- CẤU HÌNH THEMES ---
+        const THEMES = {
+            blue: {
+                name: "Modern Blue",
+                primary: "bg-blue-600 hover:bg-blue-700 text-white",
+                primaryText: "text-blue-600 dark:text-blue-400",
+                activeTab: "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400",
+                badgeBg: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+                fabBg: "bg-blue-600 text-white shadow-blue-500/30"
+            },
+            navy: {
+                name: "Corporate Navy",
+                primary: "bg-slate-900 hover:bg-slate-800 text-white dark:bg-blue-900",
+                primaryText: "text-slate-900 dark:text-blue-300",
+                activeTab: "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white",
+                badgeBg: "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200",
+                fabBg: "bg-slate-900 text-white shadow-slate-900/30 dark:bg-blue-900"
+            },
+            dark: {
+                name: "Dark Professional",
+                primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
+                primaryText: "text-indigo-400",
+                activeTab: "bg-indigo-950/60 text-indigo-400 border-indigo-500",
+                badgeBg: "bg-indigo-900/50 text-indigo-300",
+                fabBg: "bg-indigo-600 text-white shadow-indigo-500/30"
+            },
+            minimal: {
+                name: "Modern Minimal",
+                primary: "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900",
+                primaryText: "text-zinc-900 dark:text-zinc-100",
+                activeTab: "bg-zinc-200/70 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100",
+                badgeBg: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+                fabBg: "bg-zinc-900 text-white shadow-zinc-900/20 dark:bg-zinc-100 dark:text-zinc-900"
+            }
+        };
+
+        // --- COMPONENT HỖ TRỢ RENDER ICON LUCIDE ---
+        const Icon = ({ name, className = "w-5 h-5" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+
+            return <i data-lucide={name} className={className}></i>;
+        };
+
+        // --- HOÀN THIỆN MAIN APP COMPONENT ---
+        function App() {
+            // States chính
+            const [activeMenuId, setActiveMenuId] = useState('home');
+            const [selectedDesignId, setSelectedDesignId] = useState(1);
+            const [currentThemeKey, setCurrentThemeKey] = useState('blue');
+            const [isDarkMode, setIsDarkMode] = useState(false);
+            const [deviceFrame, setDeviceFrame] = useState('iphone15'); // 'iphone15', 'android', 'full'
+            const [menuItems, setMenuItems] = useState(INITIAL_MENU_ITEMS);
+            
+            // States tương tác UI Mobile Simulator
+            const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+            const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
+            const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
+            const [cmdQuery, setCmdQuery] = useState('');
+            const [fabModalOpen, setFabModalOpen] = useState(false);
+            const [toastMessage, setToastMessage] = useState('');
+            const [activeTabCode, setActiveTabCode] = useState('preview'); // 'preview', 'code', 'info'
+
+            const currentTheme = THEMES[currentThemeKey];
+            const currentDesign = MENU_DESIGNS.find(d => d.id === selectedDesignId);
+            const activeItem = menuItems.find(i => i.id === activeMenuId) || menuItems[0];
+
+            // Trigger Lucide icons re-render khi UI đổi
+            useEffect(() => {
+                if (window.lucide) {
+                    setTimeout(() => window.lucide.createIcons(), 50);
+                }
+            }, [selectedDesignId, activeMenuId, isDrawerOpen, isHamburgerOpen, isDarkMode, currentThemeKey]);
+
+            // Hiển thị thông báo Toast nhanh
+            const showToast = (msg) => {
+                setToastMessage(msg);
+                setTimeout(() => setToastMessage(''), 2500);
+            };
+
+            // Hàm chuyển tab menu
+            const handleSelectMenu = (id) => {
+                setActiveMenuId(id);
+                setIsDrawerOpen(false);
+                setIsHamburgerOpen(false);
+                setIsCmdPaletteOpen(false);
+            };
+
+            // Hàm Copy Mã Nguồn Component
+            const copyComponentCode = () => {
+                const codeSnippet = `// Mobile Navigation Component - ${currentDesign.name}
+// Generated from Mobile Navigation UI Library 2026
+import React, { useState } from 'react';
+import { Home, LayoutDashboard, Users, CheckSquare, Wallet, Bell, Settings } from 'lucide-react';
+
+export default function MobileNavigation() {
+  const [activeId, setActiveId] = useState('${activeMenuId}');
+  
+  // Design Pattern: ${currentDesign.name}
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-4 py-2">
+      {/* Implementation details for ${currentDesign.type} nav */}
+    </nav>
+  );
+}`;
+                navigator.clipboard?.writeText ? navigator.clipboard.writeText(codeSnippet) : document.execCommand('copy');
+                showToast("Đã sao chép mã nguồn React component vào bộ nhớ tạm!");
+            };
+
+            // RENDER CAC MAU MENU KHAC NHAU TRONG SIMULATOR
+            const renderMobileNavigation = () => {
+                const primary5 = menuItems.slice(0, 5);
+                const primary4 = menuItems.slice(0, 4);
+
+                switch (currentDesign.type) {
+                    case 'bottom':
+                        return (
+                            <div className="absolute bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-800 px-2 py-2 flex justify-around items-center z-20 pb-6">
+                                {primary5.map(item => {
+                                    const isActive = activeMenuId === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => handleSelectMenu(item.id)}
+                                            className={`flex flex-col items-center justify-center w-full py-1 rounded-xl transition-all ${
+                                                isActive ? currentTheme.primaryText + " font-semibold scale-105" : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                                            }`}
+                                        >
+                                            <div className="relative">
+                                                <Icon name={item.icon} className="w-5 h-5" />
+                                                {item.badge && (
+                                                    <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 text-[9px] font-bold bg-red-500 text-white rounded-full">
+                                                        {item.badge}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] mt-1 truncate max-w-[64px]">{item.label}</span>
+                                            {isActive && <div className="w-1 h-1 rounded-full bg-current mt-0.5"></div>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        );
+
+                    case 'drawer':
+                        return (
+                            <>
+                                {/* Nút kích hoạt topbar */}
+                                <div className="absolute top-0 left-0 right-0 h-14 bg-white/90 dark:bg-slate-900/90 border-b border-gray-200 dark:border-slate-800 px-4 flex items-center justify-between z-10 backdrop-blur-sm">
+                                    <button onClick={() => setIsDrawerOpen(true)} className="p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800">
+                                        <Icon name="menu" className="w-6 h-6" />
+                                    </button>
+                                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">{activeItem.label}</span>
+                                    <button onClick={() => handleSelectMenu('notifications')} className="p-2 text-gray-600 dark:text-gray-300 relative">
+                                        <Icon name="bell" className="w-5 h-5" />
+                                        <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                                    </button>
+                                </div>
+
+                                {/* Drawer Content Overlay */}
+                                {isDrawerOpen && (
+                                    <div className="absolute inset-0 z-50 flex">
+                                        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setIsDrawerOpen(false)}></div>
+                                        <div className="relative w-4/5 max-w-[280px] bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
+                                            {/* Header */}
+                                            <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center gap-3 bg-gray-50 dark:bg-slate-800/50">
+                                                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                                                    AD
+                                                </div>
+                                                <div className="flex-1 overflow-hidden">
+                                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">Nguyễn Văn Quyền</h4>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Senior Admin</p>
+                                                </div>
+                                                <button onClick={() => setIsDrawerOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                                    <Icon name="x" className="w-5 h-5" />
+                                                </button>
+                                            </div>
+
+                                            {/* Scrollable Nav List */}
+                                            <div className="flex-1 overflow-y-auto p-3 space-y-1 no-scrollbar">
+                                                {menuItems.map(item => (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => handleSelectMenu(item.id)}
+                                                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
+                                                            activeMenuId === item.id
+                                                                ? currentTheme.activeTab + " font-semibold"
+                                                                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <Icon name={item.icon} className="w-4 h-4" />
+                                                            <span>{item.label}</span>
+                                                        </div>
+                                                        {item.badge && (
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${currentTheme.badgeBg}`}>
+                                                                {item.badge}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="p-3 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-500">
+                                                <button className="flex items-center gap-2 w-full px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg">
+                                                    <Icon name="log-out" className="w-4 h-4" />
+                                                    <span>Đăng xuất</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        );
+
+                    case 'hamburger':
+                        return (
+                            <>
+                                <div className="absolute top-0 left-0 right-0 h-14 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 flex items-center justify-between z-10">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-xs">M</div>
+                                        <span className="font-bold text-sm text-gray-900 dark:text-white">ERP 2026</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsHamburgerOpen(!isHamburgerOpen)} 
+                                        className="p-2 rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200"
+                                    >
+                                        <Icon name={isHamburgerOpen ? "x" : "menu"} className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                {isHamburgerOpen && (
+                                    <div className="absolute inset-x-0 top-14 bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg z-40 p-6 flex flex-col justify-between animate-in fade-in zoom-in-95 duration-150">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {menuItems.map(item => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => handleSelectMenu(item.id)}
+                                                    className={`p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border ${
+                                                        activeMenuId === item.id
+                                                            ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 font-bold"
+                                                            : "border-gray-200 dark:border-slate-800 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                                                    }`}
+                                                >
+                                                    <Icon name={item.icon} className="w-6 h-6" />
+                                                    <span className="text-xs">{item.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="text-center text-xs text-gray-400 py-2">
+                                            Mobile UI Nav 2026 • Enterprise Edition
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        );
+
+                    case 'floating':
+                        return (
+                            <div className="absolute bottom-6 left-4 right-4 z-20">
+                                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-gray-200/80 dark:border-slate-700/80 rounded-full shadow-2xl px-3 py-2 flex justify-around items-center">
+                                    {primary5.map(item => {
+                                        const isActive = activeMenuId === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => handleSelectMenu(item.id)}
+                                                className={`p-2.5 rounded-full transition-all relative ${
+                                                    isActive 
+                                                        ? `${currentTheme.fabBg} scale-110 shadow-lg` 
+                                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                                                }`}
+                                            >
+                                                <Icon name={item.icon} className="w-5 h-5" />
+                                                {item.badge && !isActive && (
+                                                    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+
+                    case 'fab':
+                        return (
+                            <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 px-2 py-2 flex justify-around items-center z-20 pb-6">
+                                {primary4.slice(0, 2).map(item => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => handleSelectMenu(item.id)}
+                                        className={`flex flex-col items-center justify-center w-full ${
+                                            activeMenuId === item.id ? currentTheme.primaryText + " font-bold" : "text-gray-500 dark:text-gray-400"
+                                        }`}
+                                    >
+                                        <Icon name={item.icon} className="w-5 h-5" />
+                                        <span className="text-[10px] mt-1">{item.label}</span>
+                                    </button>
+                                ))}
+
+                                {/* Center Floating Action Button */}
+                                <div className="relative -top-5 px-2">
+                                    <button 
+                                        onClick={() => setFabModalOpen(true)}
+                                        className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95 ${currentTheme.fabBg}`}
+                                    >
+                                        <Icon name="plus" className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                {primary4.slice(2, 4).map(item => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => handleSelectMenu(item.id)}
+                                        className={`flex flex-col items-center justify-center w-full ${
+                                            activeMenuId === item.id ? currentTheme.primaryText + " font-bold" : "text-gray-500 dark:text-gray-400"
+                                        }`}
+                                    >
+                                        <Icon name={item.icon} className="w-5 h-5" />
+                                        <span className="text-[10px] mt-1">{item.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        );
+
+                    case 'icon_only':
+                        return (
+                            <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 px-4 py-3 flex justify-around items-center z-20 pb-6">
+                                {primary5.map(item => {
+                                    const isActive = activeMenuId === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => handleSelectMenu(item.id)}
+                                            title={item.label}
+                                            className={`p-3 rounded-2xl transition-all relative ${
+                                                isActive
+                                                    ? currentTheme.activeTab + " scale-110 shadow-xs"
+                                                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                            }`}
+                                        >
+                                            <Icon name={item.icon} className="w-5 h-5" />
+                                            {item.badge && (
+                                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        );
+
+                    case 'grid':
+                        return (
+                            <div className="p-4 pt-16 h-full overflow-y-auto no-scrollbar">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Tất cả phân hệ</h3>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {menuItems.map(item => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => handleSelectMenu(item.id)}
+                                            className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border transition-all ${
+                                                activeMenuId === item.id
+                                                    ? "bg-blue-600 text-white border-blue-600 shadow-md scale-105"
+                                                    : "bg-white dark:bg-slate-800/80 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-200 hover:shadow-xs"
+                                            }`}
+                                        >
+                                            <div className="relative">
+                                                <Icon name={item.icon} className="w-6 h-6" />
+                                                {item.badge && (
+                                                    <span className="absolute -top-1 -right-2 px-1 text-[8px] bg-red-500 text-white rounded-full">
+                                                        {item.badge}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] font-medium leading-tight">{item.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+
+                    case 'hybrid':
+                        return (
+                            <>
+                                {/* Top Search Trigger Bar */}
+                                <div className="absolute top-0 left-0 right-0 h-14 bg-white/90 dark:bg-slate-900/90 border-b border-gray-200 dark:border-slate-800 px-3 flex items-center gap-2 z-10 backdrop-blur-md">
+                                    <button onClick={() => setIsDrawerOpen(true)} className="p-2 text-gray-600 dark:text-gray-300">
+                                        <Icon name="menu" className="w-5 h-5" />
+                                    </button>
+                                    <button 
+                                        onClick={() => setIsCmdPaletteOpen(true)}
+                                        className="flex-1 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-400 px-3 py-1.5 rounded-xl text-xs flex items-center justify-between"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <Icon name="search" className="w-3.5 h-3.5" />
+                                            <span>Tìm nhanh...</span>
+                                        </span>
+                                        <kbd className="bg-gray-200 dark:bg-slate-700 text-[10px] px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 font-mono">⌘K</kbd>
+                                    </button>
+                                </div>
+
+                                {/* Standard Bottom Nav */}
+                                <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 px-2 py-2 flex justify-around items-center z-20 pb-6">
+                                    {primary4.map(item => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => handleSelectMenu(item.id)}
+                                            className={`flex flex-col items-center justify-center w-full ${
+                                                activeMenuId === item.id ? currentTheme.primaryText + " font-bold" : "text-gray-400"
+                                            }`}
+                                        >
+                                            <Icon name={item.icon} className="w-5 h-5" />
+                                            <span className="text-[10px] mt-1">{item.label}</span>
+                                        </button>
+                                    ))}
+                                    <button 
+                                        onClick={() => setIsCmdPaletteOpen(true)}
+                                        className="flex flex-col items-center justify-center w-full text-gray-400 hover:text-gray-600"
+                                    >
+                                        <Icon name="command" className="w-5 h-5" />
+                                        <span className="text-[10px] mt-1">Lệnh</span>
+                                    </button>
+                                </div>
+
+                                {/* Command Palette Modal */}
+                                {isCmdPaletteOpen && (
+                                    <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-xs p-4 flex flex-col justify-start pt-12">
+                                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+                                            <div className="p-3 border-b border-gray-200 dark:border-slate-800 flex items-center gap-2">
+                                                <Icon name="search" className="w-4 h-4 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Gõ tên phân hệ để chuyển nhanh..."
+                                                    value={cmdQuery}
+                                                    onChange={e => setCmdQuery(e.target.value)}
+                                                    className="w-full bg-transparent text-xs text-gray-800 dark:text-white focus:outline-none"
+                                                    autoFocus
+                                                />
+                                                <button onClick={() => setIsCmdPaletteOpen(false)} className="text-gray-400 hover:text-gray-600 text-xs">Hủy</button>
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto p-2 space-y-1">
+                                                {menuItems
+                                                    .filter(i => i.label.toLowerCase().includes(cmdQuery.toLowerCase()))
+                                                    .map(item => (
+                                                        <button
+                                                            key={item.id}
+                                                            onClick={() => handleSelectMenu(item.id)}
+                                                            className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-slate-800 flex items-center justify-between"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <Icon name={item.icon} className="w-4 h-4 text-gray-400" />
+                                                                <span>{item.label}</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-gray-400">{item.group}</span>
+                                                        </button>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        );
+
+                    default:
+                        return null;
+                }
+            };
+
+            return (
+                <div className={`min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
+                    {/* Header Thư Viện */}
+                    <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 px-4 lg:px-8 py-3.5">
+                        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/20">
+                                    N26
+                                </div>
+                                <div>
+                                    <h1 className="text-lg font-bold tracking-tight">MOBILE NAVIGATION UI LIBRARY 2026</h1>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Bộ thư viện chuẩn thiết kế giao diện menu Smartphone doanh nghiệp</p>
+                                </div>
+                            </div>
+
+                            {/* Global Theme & Mode Controls */}
+                            <div className="flex items-center gap-3">
+                                {/* Color Palette Selector */}
+                                <div className="flex items-center bg-gray-100 dark:bg-slate-800 p-1 rounded-xl">
+                                    {Object.keys(THEMES).map(key => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setCurrentThemeKey(key)}
+                                            className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                                                currentThemeKey === key 
+                                                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-xs' 
+                                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            {THEMES[key].name.split(' ')[1]}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Dark Mode Switch */}
+                                <button
+                                    onClick={() => setIsDarkMode(!isDarkMode)}
+                                    className="p-2 rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+                                    title="Chuyển chế độ Sáng/Tối"
+                                >
+                                    <Icon name={isDarkMode ? "sun" : "moon"} className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Notification Toast */}
+                    {toastMessage && (
+                        <div className="fixed top-16 right-4 z-50 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-top-2">
+                            <Icon name="check-circle-2" className="w-4 h-4 text-emerald-400" />
+                            <span>{toastMessage}</span>
+                        </div>
+                    )}
+
+                    {/* Main Content Layout */}
+                    <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* LEFT COLUMN: DANH SÁCH 8 MẪU MENU (Grid Cards) */}
+                        <div className="lg:col-span-7 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-base font-bold flex items-center gap-2">
+                                    <Icon name="layout" className="w-5 h-5 text-blue-600" />
+                                    <span>Danh sách 8 Mẫu Thiết Kế Menu</span>
+                                </h2>
+                                <span className="text-xs bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold px-2.5 py-1 rounded-full">
+                                    8 Standard Layouts
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {MENU_DESIGNS.map(design => {
+                                    const isSelected = selectedDesignId === design.id;
+                                    return (
+                                        <div
+                                            key={design.id}
+                                            onClick={() => setSelectedDesignId(design.id)}
+                                            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                                                isSelected 
+                                                    ? 'border-blue-600 dark:border-blue-500 bg-blue-50/40 dark:bg-slate-800/80 shadow-md ring-2 ring-blue-500/20' 
+                                                    : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-gray-300 dark:hover:border-slate-700'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <h3 className="font-bold text-sm text-gray-900 dark:text-white">{design.name}</h3>
+                                                {isSelected && (
+                                                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">
+                                                {design.description}
+                                            </p>
+                                            <div className="flex items-center justify-between text-[11px] pt-2 border-t border-gray-100 dark:border-slate-800/60">
+                                                <span className="text-blue-600 dark:text-blue-400 font-medium">Bấm xem Demo thực tế</span>
+                                                <Icon name="chevron-right" className="w-3.5 h-3.5 text-gray-400" />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* CHUYỂN TAB THÔNG TIN / CODE / CẤU HÌNH CỦA MẪU ĐANG CHỌN */}
+                            <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
+                                <div className="flex border-b border-gray-200 dark:border-slate-800 pb-3 gap-6 text-xs font-semibold">
+                                    <button
+                                        onClick={() => setActiveTabCode('preview')}
+                                        className={`pb-3 -mb-3 border-b-2 transition-all ${
+                                            activeTabCode === 'preview'
+                                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                                : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                                        }`}
+                                    >
+                                        Đặc điểm & Đánh giá UI/UX
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTabCode('code')}
+                                        className={`pb-3 -mb-3 border-b-2 transition-all ${
+                                            activeTabCode === 'code'
+                                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                                : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                                        }`}
+                                    >
+                                        Mã nguồn & Tích hợp React
+                                    </button>
+                                </div>
+
+                                <div className="pt-4 text-xs">
+                                    {activeTabCode === 'preview' && (
+                                        <div className="space-y-4">
+                                            <div>
+                                                <h4 className="font-bold text-gray-800 dark:text-gray-200 mb-1">Mô tả thiết kế:</h4>
+                                                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{currentDesign.description}</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 p-3 rounded-xl">
+                                                    <h5 className="font-bold text-emerald-700 dark:text-emerald-400 mb-1.5 flex items-center gap-1.5">
+                                                        <Icon name="check" className="w-4 h-4" /> Ưu điểm
+                                                    </h5>
+                                                    <ul className="space-y-1 text-emerald-800 dark:text-emerald-300 list-disc list-inside">
+                                                        {currentDesign.pros.map((p, idx) => <li key={idx}>{p}</li>)}
+                                                    </ul>
+                                                </div>
+                                                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 p-3 rounded-xl">
+                                                    <h5 className="font-bold text-amber-700 dark:text-amber-400 mb-1.5 flex items-center gap-1.5">
+                                                        <Icon name="alert-triangle" className="w-4 h-4" /> Nhược điểm
+                                                    </h5>
+                                                    <ul className="space-y-1 text-amber-800 dark:text-amber-300 list-disc list-inside">
+                                                        {currentDesign.cons.map((c, idx) => <li key={idx}>{c}</li>)}
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-blue-50/50 dark:bg-slate-800/50 p-3 rounded-xl border border-blue-100 dark:border-slate-700">
+                                                <h4 className="font-bold text-blue-900 dark:text-blue-300 mb-1">Trường hợp sử dụng khuyến nghị:</h4>
+                                                <p className="text-blue-800 dark:text-blue-200">{currentDesign.useCase}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTabCode === 'code' && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-500 font-mono">MobileNavComponent.tsx</span>
+                                                <button
+                                                    onClick={copyComponentCode}
+                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-1.5"
+                                                >
+                                                    <Icon name="copy" className="w-3.5 h-3.5" />
+                                                    <span>Sao chép mã</span>
+                                                </button>
+                                            </div>
+                                            <pre className="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-[11px] overflow-x-auto leading-relaxed border border-slate-800">
+{`// Tailwind CSS & React Ready Component
+export const ${currentDesign.name.replace(/[^a-zA-Z]/g, '')} = ({ activeId, onSelect }) => {
+  return (
+    <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t">
+      {/* Component Layout Code for ${currentDesign.name} */}
+    </nav>
+  );
+};`}
+                                            </pre>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* RIGHT COLUMN: SMARTPHONE INTERACTIVE SIMULATOR */}
+                        <div className="lg:col-span-5 flex flex-col items-center">
+                            <div className="sticky top-20 w-full max-w-[360px]">
+                                
+                                {/* Simulator Top Control Bar */}
+                                <div className="mb-3 flex items-center justify-between px-2">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Trải nghiệm tương tác</span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setDeviceFrame('iphone15')}
+                                            className={`px-2 py-1 text-[10px] font-semibold rounded-md border ${
+                                                deviceFrame === 'iphone15' 
+                                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300'
+                                            }`}
+                                        >
+                                            iPhone 15 Pro
+                                        </button>
+                                        <button
+                                            onClick={() => setDeviceFrame('android')}
+                                            className={`px-2 py-1 text-[10px] font-semibold rounded-md border ${
+                                                deviceFrame === 'android' 
+                                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300'
+                                            }`}
+                                        >
+                                            Android
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* SMARTPHONE FRAME */}
+                                <div className={`relative w-full aspect-[9/19.5] bg-white dark:bg-slate-950 rounded-[48px] border-[10px] border-slate-900 shadow-2xl overflow-hidden flex flex-col ring-1 ring-slate-900/10`}>
+                                    
+                                    {/* Dynamic Island / Notch */}
+                                    {deviceFrame === 'iphone15' ? (
+                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-black rounded-full z-40 flex items-center justify-end px-2 gap-1.5">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800"></div>
+                                        </div>
+                                    ) : (
+                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-black rounded-full z-40"></div>
+                                    )}
+
+                                    {/* Phone Status Bar */}
+                                    <div className="h-10 pt-2 px-6 flex justify-between items-center text-[10px] font-semibold text-gray-800 dark:text-gray-200 z-30 select-none">
+                                        <span>09:41</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <Icon name="signal" className="w-3 h-3" />
+                                            <Icon name="wifi" className="w-3 h-3" />
+                                            <Icon name="battery" className="w-3 h-3" />
+                                        </div>
+                                    </div>
+
+                                    {/* Phone Main Screen Body */}
+                                    <div className="flex-1 relative overflow-hidden bg-gray-50 dark:bg-slate-900 flex flex-col">
+                                        
+                                        {/* Mock App Header (khi không phải drawer) */}
+                                        {currentDesign.type !== 'drawer' && currentDesign.type !== 'hamburger' && currentDesign.type !== 'hybrid' && (
+                                            <div className="h-12 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 flex items-center justify-between">
+                                                <span className="font-bold text-sm text-gray-900 dark:text-white">{activeItem.label}</span>
+                                                <button className="p-1.5 text-gray-500 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800">
+                                                    <Icon name="bell" className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Dynamic Mobile Screen Content Based on Active Menu Item */}
+                                        <div className={`flex-1 p-4 overflow-y-auto ${currentDesign.type === 'grid' ? 'p-0' : ''}`}>
+                                            {currentDesign.type !== 'grid' && (
+                                                <div className="space-y-4">
+                                                    {/* Screen Header Banner */}
+                                                    <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md">
+                                                        <span className="text-[10px] opacity-80 uppercase tracking-wider font-semibold">Phân hệ đang mở</span>
+                                                        <h3 className="text-lg font-bold mt-0.5">{activeItem.label}</h3>
+                                                        <p className="text-xs opacity-90 mt-1">Dữ liệu được cập nhật thời gian thực từ hệ thống ERP Enterprise.</p>
+                                                    </div>
+
+                                                    {/* Mock Cards */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
+                                                            <span className="text-[10px] text-gray-400">Chỉ số 1</span>
+                                                            <div className="text-base font-bold text-gray-800 dark:text-white mt-1">1,248</div>
+                                                            <span className="text-[10px] text-emerald-500 font-semibold">+12% tuần này</span>
+                                                        </div>
+                                                        <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
+                                                            <span className="text-[10px] text-gray-400">Chỉ số 2</span>
+                                                            <div className="text-base font-bold text-gray-800 dark:text-white mt-1">98.4%</div>
+                                                            <span className="text-[10px] text-blue-500 font-semibold">Đạt mục tiêu</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* List Item Mock */}
+                                                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-3 space-y-2">
+                                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Nhật ký hoạt động</span>
+                                                        {[1, 2, 3].map(i => (
+                                                            <div key={i} className="flex items-center gap-3 py-1.5 border-b border-gray-100 dark:border-slate-700/50 last:border-0">
+                                                                <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
+                                                                    #{i}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <div className="text-xs font-medium text-gray-800 dark:text-gray-200">Cập nhật hồ sơ tác vụ</div>
+                                                                    <div className="text-[10px] text-gray-400">10 phút trước</div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* RENDER THE SELECTED MOBILE NAVIGATION COMPONENT */}
+                                        {renderMobileNavigation()}
+                                    </div>
+
+                                    {/* Bottom Safe Area Home Bar */}
+                                    <div className="h-5 bg-white dark:bg-slate-900 flex justify-center items-center z-30">
+                                        <div className="w-32 h-1 bg-gray-300 dark:bg-slate-700 rounded-full"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* MODAL MÔ PHỎNG FAB ACTIONS (Dành cho Mẫu 5) */}
+                    {fabModalOpen && (
+                        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end justify-center sm:items-center p-4">
+                            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-gray-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-sm text-gray-900 dark:text-white">Tạo mới nhanh</h3>
+                                    <button onClick={() => setFabModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                        <Icon name="x" className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 mb-4">
+                                    <button onClick={() => { showToast("Đã mở form Thêm Khách Hàng"); setFabModalOpen(false); }} className="p-3 bg-blue-50 dark:bg-slate-800 rounded-xl text-left border border-blue-100 dark:border-slate-700">
+                                        <Icon name="user-plus" className="w-5 h-5 text-blue-600 mb-1" />
+                                        <div className="text-xs font-bold text-gray-800 dark:text-white">Khách hàng</div>
+                                        <div className="text-[10px] text-gray-500">Tạo mới CRM</div>
+                                    </button>
+                                    <button onClick={() => { showToast("Đã mở form Thêm Task"); setFabModalOpen(false); }} className="p-3 bg-emerald-50 dark:bg-slate-800 rounded-xl text-left border border-emerald-100 dark:border-slate-700">
+                                        <Icon name="file-plus" className="w-5 h-5 text-emerald-600 mb-1" />
+                                        <div className="text-xs font-bold text-gray-800 dark:text-white">Công việc</div>
+                                        <div className="text-[10px] text-gray-500">Giao việc mới</div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Render React App
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
